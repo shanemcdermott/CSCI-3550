@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style>
+        canvas {
+            border: 1px solid #d3d3d3;
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <h2 id="networkStatus">Connecting to Network...</h2>
+
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+    
+    <script>
+        var gameId; //id of the game as sent by the server
+        var player; //player controller ref
+        var socket = io();
+            socket.emit("requestGame", "hi there.");
+            socket.on("Start Game", function(msg)
+            {
+                gameId = msg.id;
+                startGame(msg);
+                document.getElementById("networkStatus").innerHTML = "Found a game.";
+            });
+            socket.on("move", function(msg){
+                clientUpdate(msg);
+            });
+    </script>
+
+    <script>
+
+function startGame(msg) {
+    gameArea.start();
+    let team = msg.playerAssignment;
+    for(let i = 0; i < msg.objects.length; i++)
+    {
+        gameObjects.push(new component(msg.objects[i]));
+    }
+    let pawn = gameObjects[team];
+    if(team == 0)
+        pawn.color = "blue";
+    else
+        pawn.color = "red";
+    player = new controller(pawn);
+}
+
+var gameObjects = [];
+
+var gameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = 1080;
+        this.canvas.height = 720;
+        this.context = this.canvas.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.interval = setInterval(updateGameArea, 20);
+        window.addEventListener('keydown', function (e) {
+          gameArea.keys = (gameArea.keys || []);
+          gameArea.keys[e.keyCode] = (e.type == "keydown");  
+        })
+        window.addEventListener('keyup', function(e){
+            gameArea.keys[e.keyCode] = (e.type == "keydown");
+        })
+    },
+    clear : function() {
+        this.context.clearRect(0,0, this.canvas.width, this.canvas.height);
+    }
+}
+
+
+
+function component(gameObject) 
+{
+    this.color = "black";
+    this.id = gameObject.id;
+    this.width = gameObject.width;
+    this.height = gameObject.height;
+    this.loc = gameObject.loc;
+    this.vel = gameObject.vel;
+
+    this.update = function(){
+        this.loc.x += this.vel.x;
+        this.loc.y += this.vel.y;
+    }
+    
+    this.render = function(ctx){
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.loc.x, this.loc.y, this.width, this.height);
+    }
+
+    this.move = function(dir){
+        this.vel = dir;
+    }
+    this.stopMove = function()
+    {
+        this.vel = new vec2(0,0);
+    }
+}
+
+function controller(pawn)
+{
+    this.pawn = pawn;
+    this.team = '';
+
+    this.updatePawn = function()
+    {
+        let dir = new vec2(0,0);
+        if(gameArea.keys)
+        {
+            if(gameArea.keys[37]){dir.x = -1;}
+            if(gameArea.keys[39]){dir.x = 1;}
+            if(gameArea.keys[38]){dir.y = -1;}
+            if(gameArea.keys[40]){dir.y = 1;}
+        }
+        this.pawn.move(dir);
+    }
+}
+
+function clientUpdate(msg)
+{
+    for(let i = 0; i < msg.length; i++)
+    {
+        gameObjects[msg[i].id].loc = msg[i].loc;
+    }
+
+}
+
+function updateGameArea() {
+    player.updatePawn();
+    let moved = [];
+    for(let i = 0; i < gameObjects.length; i++)
+    {
+        gameObjects[i].update();
+        if(gameObjects[i].vel.x!=0 || gameObjects[i].vel.y!=0)
+        {
+            moved.push(gameObjects[i]);
+        } 
+    }
+    if(moved.length > 0)
+    {
+        socket.emit("move",
+        {
+            "gameId" : gameId,
+            "objects": moved,
+        });
+    }
+    renderGameArea();
+}
+
+function renderGameArea() {
+    gameArea.clear();
+    for(let i = 0; i < gameObjects.length; i++)
+    {
+        gameObjects[i].render(gameArea.context);
+    }
+}
+
+function vec2(x, y)
+{
+    this.x = x;
+    this.y = y;
+    this.add = function(v2)
+    {
+        this.x += v2.x;
+        this.y += v2.y;
+    }
+    this.sub = function(v2)
+    {
+        this.x -= v2.x;
+        this.y -= v2.y;
+    }
+}
+
+    </script>
+   
+    </body>
+</html>
