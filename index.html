@@ -45,7 +45,11 @@
     function startGame(msg) {
         gameArea.start();
         let team = msg.playerAssignment;
-        game.objects = msg.objects;
+        for(let i = 0; i < msg.objects.length; i++)
+        {
+            game.addObject(new gameObject(msg.objects[i]));
+        }
+        //game.objects = msg.objects;
 
         let pawn = game.objects[team];
         if(team == 0)
@@ -79,14 +83,14 @@ var gameArea = {
 
 
 
-function gameObject(id, width, height, x, y, color) 
+function gameObject(gameObject) 
 {
-    this.id = id;
-    this.width = width;
-    this.height = height;
-    this.loc = new vec2(x,y);
-    this.vel = new vec2(0,0);
-    this.color = color;
+    this.color = "black";
+    this.id = gameObject.id;
+    this.width = gameObject.width;
+    this.height = gameObject.height;
+    this.loc = gameObject.loc;
+    this.vel = gameObject.vel;
 
     this.update = function(){
         this.loc.x += this.vel.x;
@@ -122,7 +126,8 @@ function controller(pawn)
             if(gameArea.keys[38]){dir.y = -1;}
             if(gameArea.keys[40]){dir.y = 1;}
         }
-        this.pawn.move(dir);
+        this.pawn.vel = dir;
+        //this.pawn.move(dir);
     }
 }
 
