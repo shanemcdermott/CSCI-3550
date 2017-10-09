@@ -17,8 +17,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
     
     <script>
-        var gameId; //id of the game as sent by the server
+        var gameId; 
         var player; //player controller ref
+        var game ={
+          id : 0, //id of the game as sent by the server
+          players : [], //array of connected players.
+          objects : [], //array of game objects
+          state : "null", //Current state of the game.
+          
+          addObject : function(gameObject) {
+              this.objects.push(gameObject);
+          }
+        };
+        
         var socket = io();
             socket.emit("requestGame", "hi there.");
             socket.on("Start Game", function(msg)
@@ -30,26 +41,19 @@
             socket.on("move", function(msg){
                 clientUpdate(msg);
             });
-    </script>
 
-    <script>
+    function startGame(msg) {
+        gameArea.start();
+        let team = msg.playerAssignment;
+        game.objects = msg.objects;
 
-function startGame(msg) {
-    gameArea.start();
-    let team = msg.playerAssignment;
-    for(let i = 0; i < msg.objects.length; i++)
-    {
-        gameObjects.push(new component(msg.objects[i]));
+        let pawn = game.objects[team];
+        if(team == 0)
+            pawn.color = "blue";
+        else
+            pawn.color = "red";
+        player = new controller(pawn);
     }
-    let pawn = gameObjects[team];
-    if(team == 0)
-        pawn.color = "blue";
-    else
-        pawn.color = "red";
-    player = new controller(pawn);
-}
-
-var gameObjects = [];
 
 var gameArea = {
     canvas : document.createElement("canvas"),
@@ -74,14 +78,15 @@ var gameArea = {
 
 
 
-function component(gameObject) 
+
+function gameObject(id, width, height, x, y, color) 
 {
-    this.color = "black";
-    this.id = gameObject.id;
-    this.width = gameObject.width;
-    this.height = gameObject.height;
-    this.loc = gameObject.loc;
-    this.vel = gameObject.vel;
+    this.id = id;
+    this.width = width;
+    this.height = height;
+    this.loc = new vec2(x,y);
+    this.vel = new vec2(0,0);
+    this.color = color;
 
     this.update = function(){
         this.loc.x += this.vel.x;
@@ -125,7 +130,7 @@ function clientUpdate(msg)
 {
     for(let i = 0; i < msg.length; i++)
     {
-        gameObjects[msg[i].id].loc = msg[i].loc;
+        game.objects[msg[i].id].loc = msg[i].loc;
     }
 
 }
@@ -133,12 +138,12 @@ function clientUpdate(msg)
 function updateGameArea() {
     player.updatePawn();
     let moved = [];
-    for(let i = 0; i < gameObjects.length; i++)
+    for(let i = 0; i < game.objects.length; i++)
     {
-        gameObjects[i].update();
-        if(gameObjects[i].vel.x!=0 || gameObjects[i].vel.y!=0)
+        game.objects[i].update();
+        if(game.objects[i].vel.x!=0 || game.objects[i].vel.y!=0)
         {
-            moved.push(gameObjects[i]);
+            moved.push(game.objects[i]);
         } 
     }
     if(moved.length > 0)
@@ -154,9 +159,9 @@ function updateGameArea() {
 
 function renderGameArea() {
     gameArea.clear();
-    for(let i = 0; i < gameObjects.length; i++)
+    for(let i = 0; i < game.objects.length; i++)
     {
-        gameObjects[i].render(gameArea.context);
+        game.objects[i].render(gameArea.context);
     }
 }
 

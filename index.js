@@ -3,7 +3,7 @@ var app = express();
 var http = require("http").Server(app);
 var io = require("socket.io")(http);
 
-http.listen("3000", "0.0.0.0", 1000000, function(){
+http.listen(process.env.PORT, process.env.IP, 1000000, function(){
     console.log("connected");
 });
 
@@ -43,6 +43,25 @@ function gameObject(id, width, height, x, y) {
     this.height = height;
     this.loc = new vec2(x,y);
     this.vel = new vec2(0,0);
+    this.color = "black";
+    
+    this.update = function(){
+        this.loc.x += this.vel.x;
+        this.loc.y += this.vel.y;
+    }
+    
+    this.render = function(ctx){
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.loc.x, this.loc.y, this.width, this.height);
+    }
+
+    this.move = function(dir){
+        this.vel = dir;
+    }
+    this.stopMove = function()
+    {
+        this.vel = new vec2(0,0);
+    }
 }
 
 
