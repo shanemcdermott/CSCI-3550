@@ -4,59 +4,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <style>
         canvas {
-            border: 1px solid #d3d3d3;
+            border: 10px solid #d3d3d3;
             background-color: #f1f1f1;
         }
     </style>
 </head>
-<body>
-    <h2 id="networkStatus">Connecting to Network...</h2>
-
-
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+<body onload="startGame">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
     
-    <script>
-        var gameId; 
-        var player; //player controller ref
-        var game ={
-          id : 0, //id of the game as sent by the server
-          players : [], //array of connected players.
-          objects : [], //array of game objects
-          state : "null", //Current state of the game.
+<script>
+    var player; //player controller ref
+    var game ={
+      id : 0, //id of the game as sent by the server
+      players : [], //array of connected players.
+      objects : [], //array of game objects
+      state : "null", //Current state of the game.
           
-          addObject : function(gameObject) {
-              this.objects.push(gameObject);
-          }
-        };
+      addObject : function(gameObject) {
+          let obj_id = this.objects.length;
+          this.objects.push(gameObject);
+          return obj_id;
+      }
+    };
         
-        var socket = io();
-            socket.emit("requestGame", "hi there.");
-            socket.on("Start Game", function(msg)
-            {
-                gameId = msg.id;
-                startGame(msg);
-                document.getElementById("networkStatus").innerHTML = "Found a game.";
-            });
-            socket.on("move", function(msg){
-                clientUpdate(msg);
-            });
+    var socket = io();
+        socket.emit("requestGame", "hi there.");
+        socket.on("Start Game", function(msg)
+        {
+            game.id = msg.id;
+            startGame(msg);
+        });
+        socket.on("server_keypress", function(msg)
+        {
+            console.log(msg);
+            
+            updateKeys(msg.userId, msg.key);
+            
+        });
 
     function startGame(msg) {
+        
         gameArea.start();
-        let team = msg.playerAssignment;
+        
+        
         for(let i = 0; i < msg.objects.length; i++)
         {
-            game.addObject(new gameObject(msg.objects[i]));
+            let sobj = msg.objects[i];
+            let cobj = new component(sobj.id, sobj.name, sobj.width, sobj.height, sobj.src, sobj.x, sobj.y, sobj.type);
+            game.addObject(cobj);
         }
+        for(let i = 0; i < msg.players.length; i++)
+        {
+            let gplayer = new controller(msg.players[i].pawn_id, msg.players[i].team);
+            game.players.push(gplayer);
+        }
+        
         //game.objects = msg.objects;
-
-        let pawn = game.objects[team];
-        if(team == 0)
-            pawn.color = "blue";
-        else
-            pawn.color = "red";
-        player = new controller(pawn);
+        //game.players = msg.players;
+        player = game.players[msg.playerAssignment];
+        //let pawn = new component(32,32, "city.png", 10,0,"image");
+        //let pawn_id = game.addObject(pawn);
+        //player = new controller(pawn_id);
+        //player.team = msg.playerAssignment;
     }
 
 var gameArea = {
@@ -66,13 +75,29 @@ var gameArea = {
         this.canvas.height = 720;
         this.context = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo = 0;
         this.interval = setInterval(updateGameArea, 20);
         window.addEventListener('keydown', function (e) {
-          gameArea.keys = (gameArea.keys || []);
-          gameArea.keys[e.keyCode] = (e.type == "keydown");  
+           updateKeys(player.team, e);
+           socket.emit("client_keypress", {
+               "gameId" : game.id,
+               "userId" : player.team,
+               "key" : {
+                   "keyCode" : e.keyCode,
+                   "type": e.type
+               }
+           });
         })
         window.addEventListener('keyup', function(e){
-            gameArea.keys[e.keyCode] = (e.type == "keydown");
+            updateKeys(player.team, e);
+            socket.emit("client_keypress", {
+            "gameId" : game.id,
+            "userId" : player.team,
+            "key" : {
+                   "keyCode" : e.keyCode,
+                   "type": e.type
+                }
+          });
         })
     },
     clear : function() {
@@ -80,84 +105,41 @@ var gameArea = {
     }
 }
 
-
-
-
-function gameObject(gameObject) 
+function updateKeys(playerId, key)
 {
-    this.color = "black";
-    this.id = gameObject.id;
-    this.width = gameObject.width;
-    this.height = gameObject.height;
-    this.loc = gameObject.loc;
-    this.vel = gameObject.vel;
-
-    this.update = function(){
-        this.loc.x += this.vel.x;
-        this.loc.y += this.vel.y;
-    }
-    
-    this.render = function(ctx){
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.loc.x, this.loc.y, this.width, this.height);
-    }
-
-    this.move = function(dir){
-        this.vel = dir;
-    }
-    this.stopMove = function()
-    {
-        this.vel = new vec2(0,0);
-    }
+    game.players[playerId].keys[key.keyCode] = (key.type == 'keydown');
 }
 
-function controller(pawn)
+function controller(pawn_id, team)
 {
-    this.pawn = pawn;
-    this.team = '';
-
+    this.pawn_id = pawn_id;
+    this.team = team;
+    this.keys = [];
+    
     this.updatePawn = function()
     {
-        let dir = new vec2(0,0);
-        if(gameArea.keys)
+        let dirX = 0;
+        let dirY = 0;
+        if(this.keys)
         {
-            if(gameArea.keys[37]){dir.x = -1;}
-            if(gameArea.keys[39]){dir.x = 1;}
-            if(gameArea.keys[38]){dir.y = -1;}
-            if(gameArea.keys[40]){dir.y = 1;}
+            if(this.keys[37]){dirX = -1;}
+            if(this.keys[39]){dirX = 1;}
+            if(this.keys[38]){dirY = -1;}
+            if(this.keys[40]){dirY = 1;}
         }
-        this.pawn.vel = dir;
-        //this.pawn.move(dir);
+        game.objects[this.pawn_id].setSpeed(dirX,dirY);
     }
 }
 
-function clientUpdate(msg)
+function updateGameArea() 
 {
-    for(let i = 0; i < msg.length; i++)
+    for(let i = 0; i < game.players.length; i++)
     {
-        game.objects[msg[i].id].loc = msg[i].loc;
+        game.players[i].updatePawn();
     }
-
-}
-
-function updateGameArea() {
-    player.updatePawn();
-    let moved = [];
     for(let i = 0; i < game.objects.length; i++)
     {
         game.objects[i].update();
-        if(game.objects[i].vel.x!=0 || game.objects[i].vel.y!=0)
-        {
-            moved.push(game.objects[i]);
-        } 
-    }
-    if(moved.length > 0)
-    {
-        socket.emit("move",
-        {
-            "gameId" : gameId,
-            "objects": moved,
-        });
     }
     renderGameArea();
 }
@@ -170,23 +152,57 @@ function renderGameArea() {
     }
 }
 
-function vec2(x, y)
-{
-    this.x = x;
-    this.y = y;
-    this.add = function(v2)
-    {
-        this.x += v2.x;
-        this.y += v2.y;
+function component(id, name, width, height, src, x, y, type) {
+    this.type = type;
+    if (type == "image") {
+        this.image = new Image();
+        this.image.src = src;
     }
-    this.sub = function(v2)
+    this.id = id;
+    this.name = name;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;    
+    this.x = x;
+    this.y = y;    
+    this.render = function() {
+        ctx = gameArea.context;
+        if (type == "image") {
+            ctx.drawImage(this.image, 
+                this.x, 
+                this.y,
+                this.width, this.height);
+        } else {
+            ctx.fillStyle = src;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+        
+    }
+    
+    this.renderName = function() {
+        ctx.fillStyle = "black";
+        ctx.font = this.width + " " + this.height;
+        ctx.fillText(this.name,this.x,this.y+ (this.height/2));        
+    }
+    
+    this.setSpeed = function(x, y) {
+        this.speedX = x;
+        this.speedY = y;
+    }
+    
+    this.update = function() {
+      this.updatePos();
+    }
+    
+    this.updatePos = function()
     {
-        this.x -= v2.x;
-        this.y -= v2.y;
+        this.x += this.speedX;
+        this.y += this.speedY;          
     }
 }
 
-    </script>
+</script>
    
     </body>
 </html>
