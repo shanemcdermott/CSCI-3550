@@ -78,15 +78,18 @@ var gameArea = {
         this.frameNo = 0;
         this.interval = setInterval(updateGameArea, 20);
         window.addEventListener('keydown', function (e) {
-           updateKeys(player.team, e);
-           socket.emit("client_keypress", {
-               "gameId" : game.id,
-               "userId" : player.team,
-               "key" : {
-                   "keyCode" : e.keyCode,
-                   "type": e.type
-               }
-           });
+           if(!e.repeat)
+           {
+                updateKeys(player.team, e);
+                socket.emit("client_keypress", {
+                    "gameId" : game.id,
+                    "userId" : player.team,
+                    "key" : {
+                        "keyCode" : e.keyCode,
+                        "type": e.type
+                    }
+                });
+           }
         })
         window.addEventListener('keyup', function(e){
             updateKeys(player.team, e);

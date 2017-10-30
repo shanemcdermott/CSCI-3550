@@ -19,10 +19,10 @@ app.get('/city.png', function(req,res){
 var waitingForGame = [];
 var games = [];
 
-function gameInstance(id, socket1, socket2, objects)
+function gameInstance(id, sockets, objects)
 {
     this.id = id;
-    this.sockets = [socket1, socket2];
+    this.sockets = sockets;
     this.objects = objects;
     this.state = "playing";
     this.players = [];
@@ -90,8 +90,12 @@ function controller(pawn_id, team)
 //currently just shares the keypress with the other player
 io.on('connection', function(socket){
 
+//look into debouncing
+
     socket.on('client_keypress', function(msg){
         if(msg.gameId>=games.length){return;}
+        socket.broadcast.emit("server_keypress", msg);
+        /*
         var game = games[msg.gameId];
         console.log(msg);
         for(let i = 0; i < game.sockets.length; i++)
@@ -102,7 +106,7 @@ io.on('connection', function(socket){
               game.sockets[i].emit("server_keypress", msg);
             }
         }
-        
+        */
     });
 
     
@@ -116,38 +120,33 @@ io.on('connection', function(socket){
         {
             var socket1 = waitingForGame.pop();
             var socket2 = waitingForGame.pop();
-            //var socket1 = waitingForGame[0];
-            //waitingForGame.splice(0, 1);
-            //var socket2 = waitingForGame[0];
-            //waitingForGame.splice(0, 1);
+            launchGame([socket1,socket2]);
             
-            var game = new gameInstance(games.length, socket1, socket2, []);
-
-            game.objects.push(new component(0, "player1", 32,32, "city.png", 10,0,"image"));
-            game.objects.push(new component(1, "player2", 32,32, "blue", 10,0,"block"));
-            game.players.push(new controller(0, 0));
-            game.players.push(new controller(1, 1));
-
-            games.push(game);
-            
-            
-            socket1.emit("Start Game", {
-                "id" : game.id,
-                "playerAssignment" : 0,
-                "players": game.players,
-                "objects": game.objects,
-            });
-
-            socket2.emit("Start Game", {
-                "id" : game.id,
-                "playerAssignment" : 1,
-                "players": game.players,
-                "objects": game.objects,
-            });
         }
 
     });
 });
 
+function launchGame(sockets)
+{
+    var game = new gameInstance(games.length, sockets, []);
 
-console.log("Still marketing to do.")
+    for(let i = 0; i < sockets.length; i++)
+    {
+        let name = "player"+i;
+        game.objects.push(new component(i,name,32,32,"blue",10,i*10,"block"));
+        game.players.push(new controller(i,i));
+    }
+ 
+    games.push(game);
+        
+    for(let i = 0; i < sockets.length; i++)
+    {
+        sockets[i].emit("Start Game", {
+            "id" : game.id,
+            "playerAssignment" : i,
+            "players": game.players,
+            "objects": game.objects,
+        });
+    }
+}
