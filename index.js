@@ -2,14 +2,16 @@ var express = require("express");
 var app = express();
 var http = require("http").Server(app);
 var io = require("socket.io")(http);
+//const pointsInPolygon = require('points-in-polygon');
+//const mapGen = require('./lib/mapgen2/mapgen');
+var port = process.env.PORT || 3000;
+var ip = process.env.IP;
 
-http.listen("3000", "0.0.0.0", 1000000, function(){
+http.listen(port, ip, 1000000, function(){
     console.log("connected");
 });
 
-app.get('/', function(req, res){
-    res.sendFile(__dirname + '/index.html');
-});
+app.use(express.static('public/'));
 
 var waitingForGame = [];
 var games = [];
@@ -45,7 +47,21 @@ function gameObject(id, width, height, x, y) {
     this.vel = new vec2(0,0);
 }
 
-
+function makeMap()
+{
+    /*
+    var map = mapGen.calculate(null);
+    
+    let polygons = [];
+    for(let r = 0; r < map.mesh.numSolidRegions; r++){
+        polygons.push({biome: map.r_biome[r],
+        vertices: map.mesh.r_circulate_t([], r)
+                        .map((t) => map.t_vertex[t])
+        });
+    }
+    pointsInPolygon(polygon, (x,y) => console.log(x,y));
+    */
+}
 
 io.on('connection', function(socket){
 
@@ -84,7 +100,7 @@ io.on('connection', function(socket){
             //waitingForGame.splice(0, 1);
             
             var game = new gameInstance(games.length, socket1, socket2, []);
-
+            makeMap();
             game.objects.push(new gameObject(0, 30,30,10,120));
             game.objects.push(new gameObject(1,30,30,60,150));
 
@@ -106,5 +122,3 @@ io.on('connection', function(socket){
     });
 });
 
-
-console.log("Still marketing to do.")

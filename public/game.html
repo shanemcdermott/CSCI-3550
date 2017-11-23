@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style type="text/css" media="screen">
+    canvas, img { display: block; margin:1em auto; border:1px solid black; }
+    </style>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <img id="city" src="/res/city.png" alt="The City">
+    <div>
+    <h2 id="networkStatus">Connecting to Network...</h2>
+    <div id="viewdiv">
+        <canvas id="layer1"
+        style="z-index: 1;
+        position:absolute;
+        left:0px;
+        top:0px;" width=1080 height=720></canvas>
+        <canvas id="layer2"
+        style="z-index: 2;
+        position:absolute;
+        left:0px;
+        top:0px;" width=1080 height=720></canvas>
+        <canvas id="layer3" 
+        style="z-index: 3;
+        position:absolute;
+        left:0px;
+        top:0px;"width=1080 height=720></canvas>
+    </div>
+    </div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+<script>
+    var gameId; //id of the game as sent by the server
+    var player; //player controller ref
+    var gameObjects = []; //Array of all game objects
+    var layer1;
+    var layer2;
+    var layer3;
+    var ctx1;
+    var ctx2;
+    var ctx3;
+    var x = 1080;
+    var y = 720;
+    var dx = 2;
+    var dy = 4;
+    var WIDTH = 1080;
+    var HEIGHT = 720;
+    var city = document.getElementById("city");
+    
+    var socket = io();
+        socket.emit("requestGame", "hi there.");
+        socket.on("Start Game", function(msg)
+        {
+            gameId = msg.id;
+            startGame(msg);
+            document.getElementById("networkStatus").innerHTML = "Found a game.";
+        });
+        socket.on("move", function(msg){
+            clientUpdate(msg);
+        });
+
+
+function init()
+{
+   
+    layer1 = document.getElementById("layer1");
+    ctx1 = layer1.getContext("2d");
+    layer2 = document.getElementById("layer2");
+    ctx2 = layer2.getContext("2d");
+    layer3 = document.getElementById("layer3");
+    ctx3 = layer3.getContext("2d");
+    setInterval(updateGameArea, 20);
+}
+
+function drawAll()
+{
+    draw1();
+    draw2();
+    draw3();
+}
+
+function clear(ctx)
+{
+    ctx.clearRect(0,0,WIDTH,HEIGHT);
+}
+
+function draw1()
+{
+    clear(ctx1);
+    ctx1.fillStyle = "#FAF7F8";
+    ctx1.beginPath();
+    ctx1.rect(0,0,WIDTH,HEIGHT);
+    ctx1.closePath();
+    ctx1.fill();
+    ctx1.fillStyle = "#444444";
+    ctx1.beginPath();
+    ctx1.arc(x, y, 10, 0, Math.PI*2, true);
+    ctx1.closePath();
+    ctx1.fill();
+    if (x + dx > WIDTH || x + dx < 0)
+        dx = -dx;
+    if (y + dy > HEIGHT || y + dy < 0)
+        dy = -dy;
+
+    x += dx;
+    y += dy;
+}
+
+
+function draw2() {
+clear(ctx2);
+ctx2.drawImage(city, 0, 0);
+}
+
+function draw3() {
+clear(ctx3);
+ctx3.fillStyle = "#444444";
+ctx3.save();
+ctx3.translate(200,200);
+ctx3.rotate(x/20);
+ctx3.fillRect(-15, -15, 30, 30);
+ctx3.restore();
+}
+
+function startGame(msg) {
+    window.addEventListener('keydown', function (e) {
+          game.keys = (game.keys || []);
+          game.keys[e.keyCode] = (e.type == "keydown");  
+        })
+        window.addEventListener('keyup', function(e){
+            game.keys[e.keyCode] = (e.type == "keydown");
+        })
+    let team = msg.playerAssignment;
+    for(let i = 0; i < msg.objects.length; i++)
+    {
+        gameObjects.push(new component(msg.objects[i]));
+    }
+    let pawn = gameObjects[team];
+    if(team == 0)
+        pawn.color = "blue";
+    else
+        pawn.color = "red";
+    player = new controller(pawn);
+    init();
+}
+
+var game = {
+    
+}
+
+
+function component(gameObject) 
+{
+    this.color = "black";
+    this.id = gameObject.id;
+    this.width = gameObject.width;
+    this.height = gameObject.height;
+    this.loc = gameObject.loc;
+    this.vel = gameObject.vel;
+
+    this.update = function(){
+        this.loc.x += this.vel.x;
+        this.loc.y += this.vel.y;
+    }
+    
+    this.render = function(ctx){
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.loc.x, this.loc.y, this.width, this.height);
+    }
+
+    this.move = function(dir){
+        this.vel = dir;
+    }
+    this.stopMove = function()
+    {
+        this.vel = new vec2(0,0);
+    }
+}
+
+function controller(pawn)
+{
+    this.pawn = pawn;
+    this.team = '';
+
+    this.updatePawn = function()
+    {
+        let dir = new vec2(0,0);
+        if(game.keys)
+        {
+            if(game.keys[37]){dir.x = -1;}
+            if(game.keys[39]){dir.x = 1;}
+            if(game.keys[38]){dir.y = -1;}
+            if(game.keys[40]){dir.y = 1;}
+        }
+        this.pawn.move(dir);
+    }
+}
+
+function clientUpdate(msg)
+{
+    for(let i = 0; i < msg.length; i++)
+    {
+        gameObjects[msg[i].id].loc = msg[i].loc;
+    }
+
+}
+
+function updateGameArea() {
+    player.updatePawn();
+    let moved = [];
+    for(let i = 0; i < gameObjects.length; i++)
+    {
+        gameObjects[i].update();
+        if(gameObjects[i].vel.x!=0 || gameObjects[i].vel.y!=0)
+        {
+            moved.push(gameObjects[i]);
+        } 
+    }
+    if(moved.length > 0)
+    {
+        socket.emit("move",
+        {
+            "gameId" : gameId,
+            "objects": moved,
+        });
+    }
+    renderGameArea();
+}
+
+function renderGameArea() 
+{
+    drawAll();
+    for(let i = 0; i < gameObjects.length; i++)
+    {
+        gameObjects[i].render(ctx2);
+    }
+}
+
+
+function vec2(x, y)
+{
+    this.x = x;
+    this.y = y;
+    this.add = function(v2)
+    {
+        this.x += v2.x;
+        this.y += v2.y;
+    }
+    this.sub = function(v2)
+    {
+        this.x -= v2.x;
+        this.y -= v2.y;
+    }
+}
+
+    </script>
+   
+    </body>
+</html>
