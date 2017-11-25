@@ -73,9 +73,8 @@ HT.Hexagon.prototype.draw = function(ctx) {
 	}
 };
 
-HT.Hexagon.prototype.fillShape = function(ctx, color)
+HT.Hexagon.prototype.fillShape = function(ctx)
 {
-	ctx.strokeStyle = color;
 	ctx.lineWidth = 1;
 	ctx.beginPath();
 	ctx.moveTo(this.Points[0].X, this.Points[0].Y);

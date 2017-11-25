@@ -1,0 +1,22 @@
+#networkStatus {
+    color: blue;
+    font-family: verdana;
+}
+
+
+
+
+
+#mainDiv {
+   padding: 0;
+   margin: 0 auto;
+   display: block;
+   position: absolute;
+   top: 0;
+   bottom: 0;
+   left: 0;
+   right: 0;
+}
+
+
+canvas{position: absolute; display: block; margin:1em auto; border:1px solid black; }
