@@ -2,53 +2,13 @@
 <html>
 
 <head>
-    <title>Hex Grid</title>
+    <title>Dungeon Builder</title>
     <script type="text/javascript" src="js/HexagonTools.js"></script>
     <script type="text/javascript" src="js/Grid.js"></script>
     <script type="text/javascript" src="js/HexCalcs.js"></script>
-    <style>
-        body {
-            margin-top: 10px;
-        }
-
-        body {
-            background-image: linear-gradient(to bottom, #ffffff, #aaaaaa);
-        }
-
-        html {
-            min-height: 100%;
-        }
-
-        button {
-            width: 200px;
-            height: 100px;
-            margin: 10px;
-            background-image: linear-gradient(to bottom, #3498db, #2980b9);
-            border-radius: 28px;
-            font-family: Arial;
-            color: #ffffff;
-            font-size: 50px;
-            text-decoration: none;
-            text-shadow: 1px 1px 3px #666666;
-            box-shadow: 1px 1px 3px #666666;
-            font-weight: bold;
-        }
-
-        .parent {
-            text-align: center;
-        }
-
-        h1 {
-            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
-            line-height: 50px;
-        }
-
-
-    </style>
-
+    <script type="text/javascript" src="js/Biomes.js"></script>
     <script>
 
-        var currentTurn = "X"
         var WIDTH = 1080;
         var HEIGHT = 720;
         var grid = createHexGrid(50,50, WIDTH, HEIGHT);
@@ -56,27 +16,129 @@
 
       
     </script>
-
+    <link rel= "stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
 </head>
 
 <body class="parent" onmousemove="onReceiveMouseUpdate(event)">
-    <h1> Hex Grid</h1>
-    <h2 id="networkStatus">Connecting to Network...</h2>
-    <canvas id="viewport" width = 1080px height = 720px></canvas>
+    <!-- Sidebar -->
+    <div class="w3-sidebar w3-light-grey w3-bar-block" style="width:25%">
+        <h3 class="w3-bar-item">Tools</h3>
+            <div class="w3-container">
+                <button onclick="showListOptions('cursor-options')" class="w3-btn w3-block w3-blue w3-left-align">Cursor Mode</button>
+                <div id="cursor-options" class="w3-container w3-hide">
+                    <button class="w3-bar-item w3-button" onclick="setCursorMode('add')">Add Tiles</button>
+                    <a href="#" class="w3-bar-item w3-button" onclick="setCursorMode('remove')">Remove Tiles</a>
+                    <a href="#" class="w3-bar-item w3-button" onclick="setCursorMode('update')">Update Tiles</a>
+                </div>
+            </div>
+            <div class="w3-container">
+                    <button onclick="showListOptions('biome-options')" class="w3-btn w3-block w3-teal w3-left-align">Biomes</button>
+                    <div id="biome-options" class="w3-container w3-hide">
+                        <a href="#" class="w3-bar-item w3-button" onclick="setBiome('none')">None</a>
+                        <a href="#" class="w3-bar-item w3-button" onclick="setBiome('dungeon')">Dungeon</a>
+                        <a href="#" class="w3-bar-item w3-button" onclick="setBiome('ocean')">Ocean</a>
+                    </div>
+            </div>
+            <div class="w3-container">        
+                <button class="w3-btn w3-block w3-green w3-left-align">Save</button>
+                <button class="w3-btn w3-block w3-red w3-left-align">Clear</button>
+            </div>
 
-    <p>
-    <button onclick="saveMap()">Save</button>
-    </p>
+            <div id="mode-details-panel" class="w3-card-4">
+                <div class="w3-container w3-center">
+                    <h3>Biome Details</h3>
+                    <img id="mode-details-image" src="img/dungeon-room.jpg" alt="Avatar" style="width:25%">
+                    <h5 id="mode-details-title">None</h5>
+                
+                    <button onclick="prevTile()" class="w3-button w3-red">Previous Tile</button>
+                    <button onclick="nextTile()" class="w3-button w3-green">Next Tile</button>
+                </div>
+                    
+            </div>
+
+    </div>
+    <!--End Sidebar -->
+          
+    <div style="margin-left:25%">
+            <h1> Dungeon Builder</h1>
+            <h2 id="networkStatus">Connecting to Network...</h2> 
+        <canvas id="viewport" width = 1080px height = 720px></canvas>
+    </div>
+
     <script>
         var viewport = document.getElementById("viewport");
         var ctx = viewport.getContext("2d");
-        var game = {};
+        var cursor = 
+        {
+            color:"rgba(0,240,140,0.25)",
+            image: new Image()
+        };
+        cursor.image.src = "https://ksr-ugc.imgix.net/assets/005/117/906/212dc36703d973c45b107209d103dd3d_original.jpg?v=1451101091&w=639&fit=max&auto=format&q=92&s=ef301b7e8a261835d5e613ad68b00a22";
+        
+        var biomes = [];
+        biomes["none"] = new Biome("None", "rgba(255,255,255,1)",["Dungeon.jpg"]);
+        biomes["dungeon"] = new Biome("Dungeon", "#3A2A1F", ["Dungeon.jpg","Ocean.jpg"]);
+        biomes["ocean"] = new Biome("Ocean", "#258ddb", ["Ocean.jpg"]);
+
+        var game = {
+            biome:biomes["none"]
+        };
 
         function onReceiveMouseUpdate(e)
         {
             game.mousePos = (game.mousePos || new HT.Point);
             game.mousePos.X = e.clientX - viewport.offsetLeft;
             game.mousePos.Y = e.clientY - viewport.offsetTop;
+        }
+
+        function showListOptions(id)
+        {
+            var x = document.getElementById(id);
+            if (x.className.indexOf("w3-show") == -1) {
+                x.className += " w3-show";
+            } else { 
+                x.className = x.className.replace(" w3-show", "");
+            }
+        }
+
+        function setCursorMode(mode)
+        {
+            switch(mode)
+            {
+                case 'add':
+                    cursor.color = 'rgba(0,200,0,0.5)';
+                    break;
+                case 'remove':
+                    cursor.color = 'rgba(200,0,0,0.5';
+                    break;
+                case 'update':
+                    cursor.color = 'rgba(0,100,220,0.5';
+                    break;
+            }
+           
+        }
+
+        function setBiome(biome)
+        {
+            game.biome = biomes[biome];
+            document.getElementById("mode-details-title").textContent=game.biome.name;
+            document.getElementById("mode-details-image").src= "img/"+game.biome.tiles[game.biome.tileIndex];
+           // document.getElementById("mode-details-panel").style.color=game.biome.color;
+        }
+
+        function nextTile()
+        {
+            game.biome.tileIndex = (game.biome.tileIndex + 1) % game.biome.tiles.length;
+            document.getElementById("mode-details-image").src= "img/"+game.biome.tiles[game.biome.tileIndex];
+        }
+
+        function prevTile()
+        {
+            game.biome.tileIndex = (game.biome.tileIndex - 1);
+            if(game.biome.tileIndex<0)
+                game.biome.tileIndex = game.biome.tiles.length-1;
+            document.getElementById("mode-details-image").src= "img/"+game.biome.tiles[game.biome.tileIndex];
         }
 
         setInterval(updateGameArea, 20);
@@ -89,32 +151,37 @@
         function renderGameArea()
         {
             clear(ctx);
+            ctx.fillStyle = game.biome.color;
+            ctx.fillRect(0,0,WIDTH,HEIGHT);
             for(let i = 0; i < grid.Hexes.length; i++)
             {
                 grid.Hexes[i].draw(ctx);
             }
 
+            renderMouseCursor();
+            
+        }
+
+        function renderMouseCursor()
+        {
             if(game.mousePos != null)
             {
+                //ctx.drawImage(cursor.image,game.mousePos.X, game.mousePos.Y);
+                
                 let focusedHex = grid.GetHexAt(game.mousePos);
                 if(focusedHex != null)
                 {
 
-                    ctx.fillStyle = "rgba(0,240,140,0.25)";
+                    ctx.fillStyle = cursor.color;
                     focusedHex.fillShape(ctx);
                 }
+                
             }
-            
         }
 
         function clear(ctx)
         {
             ctx.clearRect(0,0,WIDTH,HEIGHT);
-        }
-        
-        function saveMap()
-        {
-            console.log("Still need to save!");
         }
 
     </script>
