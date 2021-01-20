@@ -13,7 +13,7 @@
     "express": "^4.16.1",
     "node-uuid": "^1.4.8",
     "points-in-polygon": "^0.2.1",
-    "socket.io": "^2.0.3",
+    "socket.io": "^2.4.0",
     "tingodb": "^0.5.1"
   }
 }
