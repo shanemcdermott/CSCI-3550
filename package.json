@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "ejs": "^2.5.7",
-    "express": "^4.16.1",
+    "express": "^4.17.3",
     "node-uuid": "^1.4.8",
     "points-in-polygon": "^0.2.1",
     "socket.io": "^2.0.3",
